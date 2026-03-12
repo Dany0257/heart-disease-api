@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
 import joblib
 import pandas as pd
 
@@ -9,7 +10,21 @@ app = FastAPI(
     description="API pour prédire le risque de maladie cardiaque",
     version="1.0"
 )
-
+#ça je le mets pour que mon application React puisse communiquer avec mon API pour le moment
+# On définit qui a le droit d'interroger notre API
+origines_autorisees = [
+    "http://localhost:5173", # C'est le port par défaut qu'utilisera notre outil React (Vite) en local
+    "http://localhost:3000", # Au cas où
+    # On ajoutera l'URL publique de Vercel/Render plus tard ici !
+]
+# On active le middleware CORS pour autoriser ces origines
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origines_autorisees,
+    allow_credentials=True,
+    allow_methods=["*"], # Autorise toutes les méthodes (GET, POST, etc.)
+    allow_headers=["*"], # Autorise tous les types de headers
+)
 # 2. Charger le modèle et le scaler au démarrage de l'API
 # On utilise r pour être sûr de bien lire le fichier
 try:
