@@ -15,7 +15,7 @@ app = FastAPI(
 origines_autorisees = [
     "http://localhost:5173", # C'est le port par défaut qu'utilisera notre outil React (Vite) en local
     "http://localhost:3000", # Au cas où
-    # On ajoutera l'URL publique de Vercel/Render plus tard ici !
+    "https://heart-disease-frontend-kohl.vercel.app"
 ]
 # On active le middleware CORS pour autoriser ces origines
 app.add_middleware(
