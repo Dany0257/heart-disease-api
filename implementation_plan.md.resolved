@@ -1,0 +1,54 @@
+# Plan — Heart Disease Prediction System (Améliorations Avancées)
+
+Le projet initial étant fonctionnel, nous passons à l'implémentation des améliorations avancées en suivant un ordre logique (Pipeline de traitement → Explicabilité → Interface → DevOps).
+
+## Structure du projet mise à jour
+
+```
+ProjetM1Info/
+├── data.csv                  
+├── main.py                   # Script d'entraînement mis à jour (SMOTE, Tuning, SHAP)
+├── best_heart_model.pkl      # Le nouveau modèle optimisé
+├── scaler.pkl                # Le scaler sauvegardé
+├── api.py                    # API FastAPI
+├── app.py                    # [NOUVEAU] Frontend Streamlit
+├── requirements.txt
+├── Dockerfile
+└── .github/
+    └── workflows/
+        └── main.yml          # [NOUVEAU] Pipeline CI/CD
+```
+
+---
+
+## Phase 9 — Gestion du déséquilibre (SMOTE) [[main.py](file:///home/girincud/ProjetM1Info/main.py)]
+- **Outil :** `imblearn.over_sampling.SMOTE`
+- **Action :** Appliquer `smote.fit_resample(X_train_scaled, y_train)` pour équilibrer les classes à 50/50 dans le jeu d'entraînement. Le test set reste intact et réaliste.
+
+## Phase 10 — Optimisation du modèle (Hyperparameter Tuning) [[main.py](file:///home/girincud/ProjetM1Info/main.py)]
+- **Outil :** `sklearn.model_selection.GridSearchCV` (ou `RandomizedSearchCV`)
+- **Action :** Chercher la meilleure combinaison pour le Random Forest :
+  - `n_estimators` (ex: 50, 100, 200)
+  - `max_depth` (ex: None, 10, 20)
+  - `min_samples_split` (ex: 2, 5, 10)
+- **Sauvegarde :** Mettre à jour `best_model.pkl` avec le meilleur algorithme.
+
+## Phase 11 — Explicabilité de l'IA (XAI) [[main.py](file:///home/girincud/ProjetM1Info/main.py) et `app.py`]
+- **Outil :** `shap`
+- **Général :** Utiliser `shap.TreeExplainer` pour voir l'impact global de chaque variable sur le nouveau modèle entraîné.
+- **Local :** Générer une explication visuelle détaillée pour justifier la prédiction sur un patient donné. La visualisation sera exportée pour l'interface.
+
+## Phase 12 — Interface graphique (Frontend) [`app.py`]
+- **Outil :** `streamlit`
+- **Action :** Un script séparé `app.py` qui affichera un tableau de bord convivial.
+- Des sliders (`st.slider`) et selects (`st.selectbox`) pour obtenir les données du médecin.
+- Bouton de prédiction qui appelle le modèle local (ou l'API).
+- Affichage visuel du risque (vert/rouge) et intégration de la visualisation SHAP.
+
+## Phase 13 — Automatisation CI/CD [`GitHub Actions`]
+- **Outil :** GitHub Actions
+- **Action :** Création du fichier `.github/workflows/main.yml`.
+- Configuration de jobs automatiques lors d'un `git push` :
+  1. *Linting* et vérification du code.
+  2. Construction de l'image Docker (`docker build`).
+  3. (Optionnel) Transfert de la nouvelle image vers Render en cas de succès.

@@ -1,0 +1,107 @@
+name: "Heart Disease API — CI/CD Pipeline"
+
+# ─── Déclencheurs ────────────────────────────────────────────────────────────
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# ─── Jobs ────────────────────────────────────────────────────────────────────
+jobs:
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # Job 1 : Linting & Qualité du code
+  # ════════════════════════════════════════════════════════════════════════════
+  lint:
+    name: 🔍 Lint & Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Installation de flake8
+        run: pip install flake8
+
+      - name: Vérification du code avec flake8
+        run: |
+          # Erreurs de syntaxe et imports inutilisés (bloquant)
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Avertissements de style (non-bloquant, informatif)
+          flake8 . --count --exit-zero --max-line-length=120 --statistics --ignore=E501,W503
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # Job 2 : Tests Automatisés (API + Modèle ML)
+  # ════════════════════════════════════════════════════════════════════════════
+  test:
+    name: 🧪 Tests (API + ML Model)
+    runs-on: ubuntu-latest
+    needs: lint  # Ne lance les tests que si le lint passe
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Installation de Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Cache des dépendances pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt', 'requirements-dev.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Installation des dépendances (prod + dev)
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Exécution des tests pytest
+        run: pytest tests/ -v --tb=short
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # Job 3 : Construction de l'image Docker
+  # ════════════════════════════════════════════════════════════════════════════
+  docker-build:
+    name: 🐳 Docker Build
+    runs-on: ubuntu-latest
+    needs: test  # Ne build que si les tests passent
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Construction de l'image Docker
+        run: docker build -t heart-disease-api:${{ github.sha }} .
+
+      - name: Vérification que le conteneur démarre
+        run: |
+          docker run -d --name test-container -p 8000:8000 heart-disease-api:${{ github.sha }}
+          sleep 5
+          curl -f http://localhost:8000/ || exit 1
+          docker stop test-container
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # Job 4 : Déploiement sur Render (uniquement sur main)
+  # ════════════════════════════════════════════════════════════════════════════
+  deploy:
+    name: 🚀 Deploy to Render
+    runs-on: ubuntu-latest
+    needs: docker-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Déclencher le déploiement Render
+        run: |
+          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}" \
+            --fail --silent --show-error || echo "⚠️ Render deploy hook non configuré (ignoré)"
